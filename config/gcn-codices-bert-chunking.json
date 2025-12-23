@@ -109,12 +109,12 @@
     }
   },
   "eval": {
-    "batch_size": 32,
+    "batch_size": 16,
     "threshold": 0.5
   },
   "test": {
     "best_checkpoint": "best_micro_HiAGM-TP_chunking",
-    "batch_size": 32
+    "batch_size": 16
   },
   "log": {
     "level": "info",
