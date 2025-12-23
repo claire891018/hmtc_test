@@ -1,20 +1,4 @@
-Traceback (most recent call last):
-  File "/workspace/experiments/HiAGM/train.py", line 188, in <module>
-    train(configs)
-  File "/workspace/experiments/HiAGM/train.py", line 58, in train
-    hiagm = HiAGM(config, corpus_vocab, model_type=config.model.type, model_mode='TRAIN')
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspace/experiments/HiAGM/models/model.py", line 56, in __init__
-    self.structure_encoder = StructureEncoder(config=config,
-                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspace/experiments/HiAGM/models/structure_model/structure_encoder.py", line 59, in __init__
-    self.model = MODEL_MODULE[graph_model_type](num_nodes=len(self.label_map),
-                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspace/experiments/HiAGM/models/structure_model/graphcnn.py", line 39, in __init__
-    HierarchyGCNModule(num_nodes,
-  File "/workspace/experiments/HiAGM/models/structure_model/graphcnn.py", line 82, in __init__
-    self.origin_adj = torch.Tensor(np.where(in_adj <= 0, in_adj, 1.0)).to(device)
-                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py", line 319, in _lazy_init
-    torch._C._cuda_init()
-RuntimeError: No CUDA GPUs are available
+2025/12/23 08:36:09 - INFO : Using BERT vocabulary, skipping token dict loading...
+2025/12/23 08:36:09 - INFO : Vocabulary of token: Using BERT vocab (size: 30522)
+2025/12/23 08:36:09 - INFO : Vocabulary of label 769
+2025/12/23 08:50:34 - INFO : TRAIN performance at epoch 0 --- Precision: 0.014461, Recall: 0.567345, Micro-F1: 0.028204, Macro-F1: 0.017173, Loss: 0.173270.
