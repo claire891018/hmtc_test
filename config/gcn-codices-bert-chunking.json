@@ -47,7 +47,7 @@
       "strategy": "sliding",     
       "chunk_size": 450,         
       "overlap": 50,             
-      "max_chunks": 10           
+      "max_chunks": 5           
     },
     "pooling": {
       "type": "attention",      
@@ -84,8 +84,8 @@
       "early_stopping": 20,
       "warmup_steps": 500
     },
-    "batch_size": 16,
-    "gradient_accumulation_steps": 2,
+    "batch_size": 32,
+    "gradient_accumulation_steps": 1,
     "max_grad_norm": 1.0,
     "start_epoch": 0,
     "end_epoch": 50,
@@ -108,12 +108,12 @@
     }
   },
   "eval": {
-    "batch_size": 16,
+    "batch_size": 32,
     "threshold": 0.5
   },
   "test": {
     "best_checkpoint": "best_micro_HiAGM-TP_chunking",
-    "batch_size": 16
+    "batch_size": 32
   },
   "log": {
     "level": "info",
