@@ -48,8 +48,8 @@ def train(config):
     """
     # loading corpus and generate vocabulary
     corpus_vocab = Vocab(config,
-                         min_freq=5,
-                         max_size=50000)
+                        min_freq=5,
+                        max_size=50000)
 
     # get data
     train_loader, dev_loader, test_loader = data_loaders(config, corpus_vocab)
@@ -59,17 +59,17 @@ def train(config):
     hiagm.to(config.train.device_setting.device)
     # define training objective & optimizer
     criterion = ClassificationLoss(os.path.join(config.data.data_dir, config.data.hierarchy),
-                                   corpus_vocab.v2i['label'],
-                                   recursive_penalty=config.train.loss.recursive_regularization.penalty,
-                                   recursive_constraint=config.train.loss.recursive_regularization.flag)
+                                corpus_vocab.v2i['label'],
+                                recursive_penalty=config.train.loss.recursive_regularization.penalty,
+                                recursive_constraint=config.train.loss.recursive_regularization.flag)
     optimize = set_optimizer(config, hiagm)
 
     # get epoch trainer
     trainer = Trainer(model=hiagm,
-                      criterion=criterion,
-                      optimizer=optimize,
-                      vocab=corpus_vocab,
-                      config=config)
+                    criterion=criterion,
+                    optimizer=optimize,
+                    vocab=corpus_vocab,
+                    config=config)
 
     # set origin log
     best_epoch = [-1, -1]
@@ -94,19 +94,23 @@ def train(config):
             logger.info('Loading Previous Checkpoint...')
             logger.info('Loading from {}'.format(os.path.join(model_checkpoint, latest_model_file)))
             best_performance, config = load_checkpoint(model_file=os.path.join(model_checkpoint, latest_model_file),
-                                                       model=hiagm,
-                                                       config=config,
-                                                       optimizer=optimize)
+                                                    model=hiagm,
+                                                    config=config,
+                                                    optimizer=optimize)
             logger.info('Previous Best Performance---- Micro-F1: {}%, Macro-F1: {}%'.format(
                 best_performance[0], best_performance[1]))
 
     # train
+    last_epoch = config.train.start_epoch - 1  # ← 初始化
+
     for epoch in range(config.train.start_epoch, config.train.end_epoch):
         start_time = time.time()
-        trainer.train(train_loader,
-                      epoch)
+        trainer.train(train_loader, epoch)
         trainer.eval(train_loader, epoch, 'TRAIN')
         performance = trainer.eval(dev_loader, epoch, 'DEV')
+        
+        last_epoch = epoch  # ← 記錄最後一個 epoch
+        
         # saving best model and check model
         if not (performance['micro_f1'] >= best_performance[0] or performance['macro_f1'] >= best_performance[1]):
             wait += 1
@@ -115,7 +119,7 @@ def train(config):
                 trainer.update_lr()
             if wait == config.train.optimizer.early_stopping:
                 logger.warning("Performance has not been improved for {} epochs, stopping train with early stopping"
-                               .format(wait))
+                            .format(wait))
                 break
 
         if performance['micro_f1'] > best_performance[0]:
@@ -130,6 +134,7 @@ def train(config):
                 'best_performance': best_performance,
                 'optimizer': optimize.state_dict()
             }, os.path.join(model_checkpoint, 'best_micro_' + model_name))
+            
         if performance['macro_f1'] > best_performance[1]:
             wait = 0
             logger.info('Improve Macro-F1 {}% --> {}%'.format(best_performance[1], performance['macro_f1']))
@@ -154,16 +159,19 @@ def train(config):
 
         logger.info('Epoch {} Time Cost {} secs.'.format(epoch, time.time() - start_time))
 
-    best_epoch_model_file = os.path.join(model_checkpoint, 'best_micro_' + model_name)
-
+    # ===== 存最後一個 epoch =====
+    logger.info('Saving last epoch checkpoint...')
     save_checkpoint({
-        'epoch': epoch,
+        'epoch': last_epoch,  # ← 用 last_epoch
         'model_type': config.model.type,
         'state_dict': hiagm.state_dict(),
         'best_performance': best_performance,
         'optimizer': optimize.state_dict()
-    }, os.path.join(model_checkpoint, model_name + '_last_epoch_' + str(epoch)))
+    }, os.path.join(model_checkpoint, model_name + '_last_epoch_' + str(last_epoch)))
+    # ===========================
 
+    # 載入 best model 做最終評估
+    best_epoch_model_file = os.path.join(model_checkpoint, 'best_micro_' + model_name)
     if os.path.isfile(best_epoch_model_file):
         load_checkpoint(best_epoch_model_file, model=hiagm,
                         config=config,
