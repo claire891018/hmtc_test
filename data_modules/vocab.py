@@ -252,4 +252,78 @@ class Vocab(object):
         )
         
         return encoded
-    # ===================================
+    
+    # ===== 新增：BERT chunking tokenize 方法 =====
+    def bert_chunk_tokenize(self, text, config):
+        """
+        對長文本進行 chunking + tokenization
+        :param text: str, 輸入文本
+        :param config: chunking config
+        :return: dict with chunked input_ids, attention_mask
+        """
+        if not self.use_bert:
+            raise ValueError("BERT tokenizer is not initialized")
+        
+        # 先完整 tokenize（不截斷）
+        tokens = self.bert_tokenizer.tokenize(text)
+        
+        # 如果不啟用 chunking，直接返回截斷版本
+        if not config.get('enabled', False):
+            encoded = self.bert_tokenizer(
+                text,
+                padding='max_length',
+                truncation=True,
+                max_length=config.get('max_length', 512),
+                return_tensors='pt'
+            )
+            return encoded
+        
+        # Chunking
+        chunk_size = config.get('chunk_size', 450)
+        overlap = config.get('overlap', 50)
+        max_chunks = config.get('max_chunks', 10)
+        
+        chunks = []
+        start = 0
+        while start < len(tokens) and len(chunks) < max_chunks:
+            end = min(start + chunk_size, len(tokens))
+            chunk_tokens = tokens[start:end]
+            
+            # 轉成 ids 並加上 [CLS] 和 [SEP]
+            chunk_ids = self.bert_tokenizer.convert_tokens_to_ids(chunk_tokens)
+            chunk_ids = [self.bert_tokenizer.cls_token_id] + chunk_ids + [self.bert_tokenizer.sep_token_id]
+            
+            # Padding 到 max_length
+            padding_length = 512 - len(chunk_ids)
+            chunk_ids += [self.bert_tokenizer.pad_token_id] * padding_length
+            attention_mask = [1] * (len(chunk_tokens) + 2) + [0] * padding_length
+            
+            chunks.append({
+                'input_ids': chunk_ids[:512],
+                'attention_mask': attention_mask[:512]
+            })
+            
+            if end >= len(tokens):
+                break
+            start = end - overlap
+        
+        return chunks  # List[Dict]
+    
+    def bert_batch_chunk_tokenize(self, texts, config):
+        """
+        批量 chunking tokenization
+        :param texts: List[str]
+        :param config: chunking config
+        :return: List[List[Dict]] or standard batch dict
+        """
+        if not config.get('enabled', False):
+            # 不啟用 chunking，走原本邏輯
+            return self.bert_batch_tokenize(texts, config.get('max_length', 512))
+        
+        # 每個文本可能有不同數量的 chunks
+        batch_chunks = []
+        for text in texts:
+            chunks = self.bert_chunk_tokenize(text, config)
+            batch_chunks.append(chunks)
+        
+        return batch_chunks  # List[List[Dict]]

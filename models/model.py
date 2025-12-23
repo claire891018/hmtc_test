@@ -54,21 +54,21 @@ class HiAGM(nn.Module):
         self.text_encoder = TextEncoder(config, vocab=vocab)
 
         self.structure_encoder = StructureEncoder(config=config,
-                                                  label_map=vocab.v2i['label'],
-                                                  device=self.device,
-                                                  graph_model_type=config.structure_encoder.type)
+                                                label_map=vocab.v2i['label'],
+                                                device=self.device,
+                                                graph_model_type=config.structure_encoder.type)
 
         if self.dataflow_type == 'serial':
             self.hiagm = HiAGMTP(config=config,
-                                 device=self.device,
-                                 graph_model=self.structure_encoder,
-                                 label_map=self.label_map)
+                                device=self.device,
+                                graph_model=self.structure_encoder,
+                                label_map=self.label_map)
         elif self.dataflow_type == 'parallel':
             self.hiagm = HiAGMLA(config=config,
-                                 device=self.device,
-                                 graph_model=self.structure_encoder,
-                                 label_map=self.label_map,
-                                 model_mode=model_mode)
+                                device=self.device,
+                                graph_model=self.structure_encoder,
+                                label_map=self.label_map,
+                                model_mode=model_mode)
         else:
             self.hiagm = Classifier(config=config,
                                     vocab=vocab,
@@ -78,9 +78,9 @@ class HiAGM(nn.Module):
         """
         get parameters of the overall model
         :return: List[Dict{'params': Iteration[torch.Tensor],
-                           'lr': Float (predefined learning rate for specified module,
+                        'lr': Float (predefined learning rate for specified module,
                                         which is different from the others)
-                          }]
+                        }]
         """
         params = list()
         params.append({'params': self.text_encoder.parameters()})
@@ -88,30 +88,52 @@ class HiAGM(nn.Module):
         params.append({'params': self.hiagm.parameters()})
         return params
 
+    # def forward(self, batch):
+    #     """
+    #     forward pass of the overall architecture
+    #     :param batch: DataLoader._DataLoaderIter[Dict{'token_len': List}], each batch sampled from the current epoch
+    #     :return: 
+    #     """
+    #     # 檢查是否 BERT 模式
+    #     # print(batch)
+    #     if 'input_ids' in batch:
+    #         # BERT 模式
+    #         # print("[model.py] Use BERT")
+    #         embedding = self.token_embedding(
+    #             input_ids=batch['input_ids'].to(self.config.train.device_setting.device),
+    #             attention_mask=batch['attention_mask'].to(self.config.train.device_setting.device),
+    #             token_type_ids=batch.get('token_type_ids').to(self.config.train.device_setting.device) if batch.get('token_type_ids') is not None else None
+    #         )
+    #         token_output = self.text_encoder(embedding)
+    #     else:        
+    #         # get distributed representation of tokens, (batch_size, max_length, embedding_dimension)
+    #         embedding = self.token_embedding(batch['token'].to(self.config.train.device_setting.device))
+    #         # get the length of sequences for dynamic rnn, (batch_size, 1)
+    #         seq_len = batch['token_len']
+    #         token_output = self.text_encoder(embedding, seq_len)
+
+    #     logits = self.hiagm(token_output)
+
+    #     return logits
+    
     def forward(self, batch):
-        """
-        forward pass of the overall architecture
-        :param batch: DataLoader._DataLoaderIter[Dict{'token_len': List}], each batch sampled from the current epoch
-        :return: 
-        """
-        # 檢查是否 BERT 模式
-        # print(batch)
+        chunked = batch.get('chunked', False)
+        
         if 'input_ids' in batch:
             # BERT 模式
-            # print("[model.py] Use BERT")
             embedding = self.token_embedding(
                 input_ids=batch['input_ids'].to(self.config.train.device_setting.device),
                 attention_mask=batch['attention_mask'].to(self.config.train.device_setting.device),
-                token_type_ids=batch.get('token_type_ids').to(self.config.train.device_setting.device) if batch.get('token_type_ids') is not None else None
+                token_type_ids=batch.get('token_type_ids').to(self.config.train.device_setting.device) if batch.get('token_type_ids') is not None else None,
+                chunk_counts=batch.get('chunk_counts').to(self.config.train.device_setting.device) if chunked else None,
+                chunked=chunked
             )
             token_output = self.text_encoder(embedding)
-        else:        
-            # get distributed representation of tokens, (batch_size, max_length, embedding_dimension)
+        else:
+            # 原本的模式
             embedding = self.token_embedding(batch['token'].to(self.config.train.device_setting.device))
-            # get the length of sequences for dynamic rnn, (batch_size, 1)
             seq_len = batch['token_len']
             token_output = self.text_encoder(embedding, seq_len)
 
         logits = self.hiagm(token_output)
-
         return logits
