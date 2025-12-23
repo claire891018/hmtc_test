@@ -205,30 +205,38 @@ class BertEmbeddingLayer(torch.nn.Module):
     
     def forward(self, input_ids, attention_mask=None, token_type_ids=None, chunk_counts=None, chunked=False):
         if chunked:
-            # ===== Chunked mode =====
+            # ===== Chunked mode (循序處理) =====
             batch_size, max_chunks, seq_len = input_ids.size()
             
-            # Reshape to process all chunks at once
-            input_ids_flat = input_ids.view(-1, seq_len)  # [batch*max_chunks, seq_len]
-            attention_mask_flat = attention_mask.view(-1, seq_len)
+            # 逐個 chunk 處理
+            chunk_embeddings_list = []
+            for i in range(max_chunks):
+                # 取出第 i 個 chunk
+                chunk_input_ids = input_ids[:, i, :]  # [batch, seq_len]
+                chunk_attention_mask = attention_mask[:, i, :]  # [batch, seq_len]
+                
+                # BERT encoding
+                outputs = self.bert(
+                    input_ids=chunk_input_ids,
+                    attention_mask=chunk_attention_mask
+                )
+                cls_output = outputs.last_hidden_state[:, 0, :]  # [batch, hidden]
+                chunk_embeddings_list.append(cls_output)
             
-            # BERT encoding
-            outputs = self.bert(
-                input_ids=input_ids_flat,
-                attention_mask=attention_mask_flat
-            )
-            cls_outputs = outputs.last_hidden_state[:, 0, :]  # [batch*max_chunks, hidden]
-            
-            # Reshape back
-            chunk_embeddings = cls_outputs.view(batch_size, max_chunks, -1)  # [batch, max_chunks, hidden]
+            # Stack all chunks: [batch, max_chunks, hidden]
+            chunk_embeddings = torch.stack(chunk_embeddings_list, dim=1)
             
             # Pooling
             if self.pooling_type == 'attention':
                 pooled = self.pooling(chunk_embeddings, chunk_counts)
+            elif self.pooling_type == 'mean':
+                pooled = self._mean_pooling(chunk_embeddings, chunk_counts)
+            elif self.pooling_type == 'max':
+                pooled = self._max_pooling(chunk_embeddings)
             else:
-                pooled = self.pooling(chunk_embeddings, chunk_counts)
+                pooled = self._mean_pooling(chunk_embeddings, chunk_counts)
             
-            return pooled.unsqueeze(1)  # [batch, 1, hidden] 保持原格式
+            return pooled.unsqueeze(1)  # [batch, 1, hidden]
         else:
             # ===== 原本的單一輸入模式 =====
             outputs = self.bert(
