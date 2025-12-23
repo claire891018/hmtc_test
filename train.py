@@ -143,7 +143,7 @@ def train(config):
                 'optimizer': optimize.state_dict()
             }, os.path.join(model_checkpoint, 'best_macro_' + model_name))
 
-        if epoch % 10 == 1:
+        if epoch % 20 == 1:
             save_checkpoint({
                 'epoch': epoch,
                 'model_type': config.model.type,
@@ -155,6 +155,15 @@ def train(config):
         logger.info('Epoch {} Time Cost {} secs.'.format(epoch, time.time() - start_time))
 
     best_epoch_model_file = os.path.join(model_checkpoint, 'best_micro_' + model_name)
+
+    save_checkpoint({
+        'epoch': epoch,
+        'model_type': config.model.type,
+        'state_dict': hiagm.state_dict(),
+        'best_performance': best_performance,
+        'optimizer': optimize.state_dict()
+    }, os.path.join(model_checkpoint, model_name + '_last_epoch_' + str(epoch)))
+
     if os.path.isfile(best_epoch_model_file):
         load_checkpoint(best_epoch_model_file, model=hiagm,
                         config=config,

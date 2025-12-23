@@ -84,8 +84,8 @@
       "early_stopping": 20,
       "warmup_steps": 500
     },
-    "batch_size": 64,
-    "gradient_accumulation_steps": 1,
+    "batch_size": 16,
+    "gradient_accumulation_steps": 2,
     "max_grad_norm": 1.0,
     "start_epoch": 0,
     "end_epoch": 50,
@@ -99,10 +99,10 @@
     "device_setting": {
       "device": "cuda",
       "visible_device_list": "0",
-      "num_workers": 16
+      "num_workers": 5
     },
     "checkpoint": {
-      "dir": "codices_hiagm_bert_checkpoint",
+      "dir": "codices_hiagm_bert_chunking_checkpoint",
       "max_number": 5,
       "save_best": ["Macro_F1", "Micro_F1"]
     }
@@ -112,11 +112,11 @@
     "threshold": 0.5
   },
   "test": {
-    "best_checkpoint": "best_micro_HiAGM-TP",
+    "best_checkpoint": "best_micro_HiAGM-TP_chunking",
     "batch_size": 64
   },
   "log": {
     "level": "info",
-    "filename": "bert-codices.log"
+    "filename": "bert-codices-chunking.log"
   }
 }
