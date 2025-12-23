@@ -73,22 +73,26 @@
       "early_stopping": 20,
       "warmup_steps": 500
     },
-    "batch_size": 8,
-    "gradient_accumulation_steps": 4,
+    "batch_size": 64,
+    "gradient_accumulation_steps": 1,
     "max_grad_norm": 1.0,
     "start_epoch": 0,
     "end_epoch": 50,
     "loss": {
       "classification": "BCEWithLogitsLoss",
+      "missing_label_handling": {
+        "enabled": true,
+        "neg_weight": 0.0
+      },
       "recursive_regularization": {
         "flag": true,
         "penalty": 0.000001
       }
     },
     "device_setting": {
-      "device": "cpu",
-      "visible_device_list": "",
-      "num_workers": 4
+      "device": "cuda",
+      "visible_device_list": "0",
+      "num_workers": 16
     },
     "checkpoint": {
       "dir": "codices_hiagm_bert_checkpoint",
@@ -97,15 +101,15 @@
     }
   },
   "eval": {
-    "batch_size": 8,
+    "batch_size": 64,
     "threshold": 0.5
   },
   "test": {
     "best_checkpoint": "best_micro_HiAGM-TP",
-    "batch_size": 8
+    "batch_size": 64
   },
   "log": {
     "level": "info",
-    "filename": "bert-codices_prob.log"
+    "filename": "bert-codices.log"
   }
 }
