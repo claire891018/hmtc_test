@@ -74,9 +74,6 @@ class EmbeddingLayer(torch.nn.Module):
         super(EmbeddingLayer, self).__init__()
         
         # 檢查是否使用 BERT
-        print(f"vocab is not None: {vocab is not None}")
-        print(f"vocab.use_bert: {vocab.use_bert if vocab else 'N/A'}")
-        print(f"vocab_name == 'token': {vocab_name == 'token'}")
         self.use_bert = vocab is not None and vocab.use_bert and vocab_name == 'token'
         
         if self.use_bert:
@@ -131,9 +128,25 @@ class EmbeddingLayer(torch.nn.Module):
         logger.info('Total vocab size of %s is %d.' % (vocab_name, len(vocab_map)))
         logger.info('Pretrained vocab embedding has %d / %d' % (num_pretrained_vocab, len(vocab_map)))
 
-    def forward(self, vocab_id_list=None, input_ids=None, attention_mask=None, token_type_ids=None):
+    def forward(self, vocab_id_list=None, input_ids=None, attention_mask=None, token_type_ids=None,
+                chunk_counts=None, chunked=False):
+        """
+        Forward pass
+        :param vocab_id_list: for non-BERT mode
+        :param input_ids: for BERT mode
+        :param attention_mask: for BERT mode
+        :param token_type_ids: for BERT mode
+        :param chunk_counts: [batch], number of chunks per sample (for chunked mode)
+        :param chunked: bool, whether input is chunked
+        """
         if self.use_bert:
-            return self.bert_embedding(input_ids, attention_mask, token_type_ids)
+            return self.bert_embedding(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                token_type_ids=token_type_ids,
+                chunk_counts=chunk_counts,
+                chunked=chunked
+            )
         else:
             embedding = self.embedding(vocab_id_list)
             return self.dropout(embedding)
@@ -156,7 +169,7 @@ class BertEmbeddingLayer(torch.nn.Module):
         self.dropout = torch.nn.Dropout(p=config['embedding']['token']['dropout'])
         
         # ===== 新增：Pooling module =====
-        pooling_type = config['text_encoder']['pooling']['type'] if 'pooling' in config['text_encoder'] else 'mean'
+        pooling_type = config.text_encoder.pooling.type if hasattr(config.text_encoder, 'pooling') else 'mean'
         hidden_dim = config['embedding']['token']['dimension']
         
         if pooling_type == 'attention':
