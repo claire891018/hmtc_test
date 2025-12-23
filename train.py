@@ -106,7 +106,12 @@ def train(config):
     for epoch in range(config.train.start_epoch, config.train.end_epoch):
         start_time = time.time()
         trainer.train(train_loader, epoch)
+        # ===== 新增：清理快取 =====
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        # =========================
         trainer.eval(train_loader, epoch, 'TRAIN')
+        torch.cuda.empty_cache() 
         performance = trainer.eval(dev_loader, epoch, 'DEV')
         
         last_epoch = epoch  # ← 記錄最後一個 epoch

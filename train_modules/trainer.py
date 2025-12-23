@@ -48,11 +48,8 @@ class Trainer(object):
         total_loss = 0.0
         num_batch = data_loader.__len__()
         
-        # ===== 新增 =====
         accumulation_steps = getattr(self.config.train, 'gradient_accumulation_steps', 1)
-        # ===============
 
-        # for batch in tqdm.tqdm(data_loader):
         for i, batch in enumerate(tqdm.tqdm(data_loader)):
             logits = self.model(batch)
             if self.config.train.loss.recursive_regularization.flag:
@@ -63,18 +60,17 @@ class Trainer(object):
             loss = self.criterion(logits,
                                 batch['label'].to(self.config.train.device_setting.device),
                                 recursive_constrained_params)
-
-            # ===== 新增：縮放 loss =====
-            loss = loss / accumulation_steps
-            # ==========================
             
+            # 縮放 loss
+            loss = loss / accumulation_steps
             total_loss += loss.item()
 
             if mode == 'TRAIN':
-                # self.optimizer.zero_grad()
-                # loss.backward()
-                # self.optimizer.step()
-                # ===== 新增：累積梯度 =====
+                # ===== 關鍵：一定要 backward！ =====
+                loss.backward()  # ← 必須有這行！
+                # ==================================
+                
+                # 每 accumulation_steps 更新一次
                 if (i + 1) % accumulation_steps == 0:
                     # 梯度裁剪
                     if hasattr(self.config.train, 'max_grad_norm'):
@@ -82,33 +78,32 @@ class Trainer(object):
                     
                     self.optimizer.step()
                     self.optimizer.zero_grad()
-                # ========================
+            
             predict_results = torch.sigmoid(logits).cpu().tolist()
             predict_probs.extend(predict_results)
             target_labels.extend(batch['label_list'])
-
-        # ===== 新增：處理最後不足 accumulation_steps 的部分 =====
+        
+        # 處理最後不足 accumulation_steps 的部分
         if mode == 'TRAIN' and (num_batch % accumulation_steps != 0):
+            if hasattr(self.config.train, 'max_grad_norm'):
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.train.max_grad_norm)
             self.optimizer.step()
             self.optimizer.zero_grad()
-        # ======================================================            
-
+        
         total_loss = total_loss / num_batch
+        
         if mode == 'EVAL':
             metrics = evaluate(predict_probs,
                             target_labels,
                             self.vocab,
                             self.config.eval.threshold)
-            # metrics = {'precision': precision_micro,
-            #             'recall': recall_micro,
-            #             'micro_f1': micro_f1,
-            #             'macro_f1': macro_f1}
             logger.info("%s performance at epoch %d --- Precision: %f, "
                         "Recall: %f, Micro-F1: %f, Macro-F1: %f, Loss: %f.\n"
                         % (stage, epoch,
                         metrics['precision'], metrics['recall'], metrics['micro_f1'], metrics['macro_f1'],
                         total_loss))
             return metrics
+        
 
     def train(self, data_loader, epoch):
         """
