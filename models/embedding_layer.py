@@ -58,19 +58,19 @@ INIT_FUNC = {
 
 class EmbeddingLayer(torch.nn.Module):
     def __init__(self,
-                 vocab_map,
-                 embedding_dim,
-                 vocab_name,
-                 config,
-                 padding_index=None,
-                 pretrained_dir=None,
-                 model_mode='TRAIN',
-                 initial_type='kaiming_uniform',
-                 negative_slope=0, mode_fan='fan_in',
-                 activation_type='linear',
-                 vocab=None,
-                 device=None
-                 ):
+                vocab_map,
+                embedding_dim,
+                vocab_name,
+                config,
+                padding_index=None,
+                pretrained_dir=None,
+                model_mode='TRAIN',
+                initial_type='kaiming_uniform',
+                negative_slope=0, mode_fan='fan_in',
+                activation_type='linear',
+                vocab=None,
+                device=None
+                ):
         super(EmbeddingLayer, self).__init__()
         
         # 檢查是否使用 BERT
@@ -119,7 +119,7 @@ class EmbeddingLayer(torch.nn.Module):
                 row = line.rstrip('\n').split(' ')
                 if len(row) == 2:
                     assert int(row[1]) == embedding_dim, 'Pretrained dimension %d dismatch the setting %d' \
-                                                         % (int(row[1]), embedding_dim)
+                                                        % (int(row[1]), embedding_dim)
                     continue
                 if row[0] in vocab_map:
                     current_embedding = torch.FloatTensor([float(i) for i in row[1:]])
@@ -161,6 +161,13 @@ class BertEmbeddingLayer(torch.nn.Module):
         self.bert = BertModel.from_pretrained(
             config['embedding']['token']['pretrained_model']
         )
+        
+        # ===== 從 Config 讀取 =====
+        use_checkpointing = getattr(config['embedding']['token'], 'gradient_checkpointing', False)
+        if use_checkpointing:
+            self.bert.gradient_checkpointing_enable()
+            print('Gradient checkpointing enabled for BERT')
+        # ==========================
         
         if hasattr(config['embedding']['token'], 'freeze_bert') and config['embedding']['token']['freeze_bert']:
             for param in self.bert.parameters():

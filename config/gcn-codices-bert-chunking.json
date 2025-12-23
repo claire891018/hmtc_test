@@ -22,7 +22,8 @@
       "pretrained_file": "", 
       "dropout": 0.1,
       "freeze_bert": false,
-      "init_type": "uniform"
+      "init_type": "uniform",
+      "gradient_checkpointing": true 
     },
     "label": {
       "dimension": 768,
@@ -84,8 +85,8 @@
       "early_stopping": 20,
       "warmup_steps": 500
     },
-    "batch_size": 32,
-    "gradient_accumulation_steps": 1,
+    "batch_size": 8,
+    "gradient_accumulation_steps": 2,
     "max_grad_norm": 1.0,
     "start_epoch": 0,
     "end_epoch": 50,
@@ -108,12 +109,12 @@
     }
   },
   "eval": {
-    "batch_size": 32,
+    "batch_size": 8,
     "threshold": 0.5
   },
   "test": {
     "best_checkpoint": "best_micro_HiAGM-TP_chunking",
-    "batch_size": 32
+    "batch_size": 8
   },
   "log": {
     "level": "info",
