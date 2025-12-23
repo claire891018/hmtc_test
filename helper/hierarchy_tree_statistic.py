@@ -129,11 +129,22 @@ class DatasetStatistic(object):
         prob_dict = copy.deepcopy(self.init_prior_prob_dict)
 
         for sample in data:
+            print('[DEBUG]', sample)
             sample_flag = False
             sample = json.loads(sample)
-            sample_label = sample['label']
-            all_label_num += len(sample_label)
-            doc_length_all += len(sample['token'])
+            label_name = 'label'
+            token_name = 'token'
+            try:
+                sample_label = sample[label_name]
+                all_label_num += len(sample_label)
+                doc_length_all += len(sample[token_name])
+            except:
+                print('Wrong name')
+                label_name = 'doc_label'
+                token_name = 'doc_token'
+                sample_label = sample[label_name]
+                all_label_num += len(sample_label)
+                doc_length_all += len(sample[token_name])
             # sample label : list of labels
             for label in sample_label:
                 path_flag = False
@@ -141,7 +152,9 @@ class DatasetStatistic(object):
                 level_num_dict[self.label_trees[label]._depth] += 1
                 if label in self.init_prior_prob_dict.keys():
                     # TODO the children of Root node, need to be changed according to different corpus
-                    if label in ["CCAT", "ECAT", "GCAT", "MCAT"]:
+                    # if label in ["CCAT", "ECAT", "GCAT", "MCAT"]:
+                    # if label in ["CS", "Medical", "Civil", "ECE", "biochemistry", "MAE", "Psychology"]:
+                    if label in ["1", "2", "3", "4", "5"]: 
                         prob_dict[ROOT_LABEL][label] += 1
                         self.prior_prob_dict[ROOT_LABEL][label] += 1
                         if 'train' in file_name or 'val' in file_name:
@@ -156,10 +169,10 @@ class DatasetStatistic(object):
 
                 if label not in label_num_dict:
                     label_num_dict[label] = 1
-                    label_doc_len_dict[label] = len(sample['token'])
+                    label_doc_len_dict[label] = len(sample[token_name])
                 else:
                     label_num_dict[label] += 1
-                    label_doc_len_dict[label] += len(sample['token'])
+                    label_doc_len_dict[label] += len(sample[token_name])
 
                 if self.label_trees[label].num_children > 0 and not (sample_flag and path_flag):
                     # flag = False

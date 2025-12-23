@@ -33,34 +33,8 @@ class Collator(object):
         else:
             return self._original_collate(batch)
     
-    # def _bert_collate(self, batch):
-    #     texts = [' '.join(sample['token']) for sample in batch]
-    #     batch_label = [sample['label'] for sample in batch]
-        
-    #     encoded = self.vocab.bert_batch_tokenize(texts, max_length=self.max_length)
-    #     batch_multi_hot_label = self._multi_hot(batch_label)
-        
-    #     return {
-    #         'input_ids': encoded['input_ids'],
-    #         'attention_mask': encoded['attention_mask'],
-    #         'token_type_ids': encoded.get('token_type_ids'),
-    #         'label': batch_multi_hot_label,
-    #         'label_list': batch_label
-    #     }
-        
     def _bert_collate(self, batch):
-        # 改成：從原始 token 取得
-        texts = []
-        for sample in batch:
-            # sample['token'] 是 indices，需要從原始數據取 token 字符串
-            # 或者直接用 token_text（如果有的話）
-            if 'token_text' in sample:
-                texts.append(sample['token_text'])
-            else:
-                # 如果沒有原始文本，從 vocab 轉回來
-                tokens = [self.vocab.i2v['token'].get(idx, '<UNK>') for idx in sample['token']]
-                texts.append(' '.join(tokens))
-        
+        texts = [' '.join(sample['token']) for sample in batch]
         batch_label = [sample['label'] for sample in batch]
         
         encoded = self.vocab.bert_batch_tokenize(texts, max_length=self.max_length)
@@ -73,7 +47,7 @@ class Collator(object):
             'label': batch_multi_hot_label,
             'label_list': batch_label
         }
-        
+    
     def _original_collate(self, batch):
         batch_token = []
         batch_label = []

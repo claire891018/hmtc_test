@@ -1,6 +1,14 @@
 #!/usr/bin/env python
 # coding:utf-8
 
+import torch
+try:
+    import torch._dynamo._trace_wrapped_higher_order_op as op
+    if not hasattr(op, "TransformGetItemToIndex"):
+        op.TransformGetItemToIndex = None
+except (ImportError, ModuleNotFoundError):
+    pass
+
 import helper.logger as logger
 from models.model import HiAGM
 import torch
@@ -14,7 +22,6 @@ from train_modules. trainer import Trainer
 from helper.utils import load_checkpoint, save_checkpoint
 import time
 
-
 def set_optimizer(config, model):
     """
     :param config: helper.configure, Configure Object
@@ -25,8 +32,14 @@ def set_optimizer(config, model):
     if config.train.optimizer.type == 'Adam':
         return torch.optim.Adam(lr=config.train.optimizer.learning_rate,
                                 params=params)
+    elif config.train.optimizer.type == 'AdamW':
+        return torch.optim.AdamW(
+            params=params,
+            lr=config.train.optimizer.learning_rate,
+            weight_decay=config.train.optimizer.weight_decay
+        )
     else:
-        raise TypeError("Recommend the Adam optimizer")
+        raise TypeError("Recommend the optimizer")
 
 
 def train(config):

@@ -1,0 +1,111 @@
+{
+  "data": {
+    "dataset": "codices",
+    "data_dir": "data",
+    "train_file": "codices_train.json",
+    "val_file": "codices_val.json",
+    "test_file": "codices_test.json",
+    "prob_json": "codices_prob.json",
+    "hierarchy": "codices.taxonomy"
+  },
+  "vocabulary": {
+    "dir": "vocab",
+    "vocab_dict": "word.dict",
+    "max_token_vocab": 60000,
+    "label_dict": "label.dict"
+  },
+  "embedding": {
+    "token": {
+      "dimension": 768,
+      "type": "bert",
+      "pretrained_model": "bert-base-uncased",
+      "pretrained_file": "", 
+      "dropout": 0.1,
+      "freeze_bert": false,
+      "init_type": "uniform"
+    },
+    "label": {
+      "dimension": 768,
+      "type": "random",
+      "dropout": 0.1,
+      "init_type": "kaiming_uniform"
+    }
+  },
+  "text_encoder": {
+    "type": "BERT",
+    "max_length": 512,
+    "bert_config": {
+      "model_name": "bert-base-uncased",
+      "hidden_size": 768,
+      "num_hidden_layers": 12,
+      "num_attention_heads": 12,
+      "dropout": 0.1,
+      "output_layer": "pooler"
+    }
+  },
+  "structure_encoder": {
+    "type": "GCN",
+    "node": {
+      "type": "text",
+      "dimension": 768,
+      "dropout": 0.1
+    }
+  },
+  "model": {
+    "type": "HiAGM-TP",
+    "linear_transformation": {
+      "text_dimension": 768,
+      "node_dimension": 768,
+      "dropout": 0.1
+    },
+    "classifier": {
+      "num_layer": 1,
+      "dropout": 0.1
+    }
+  },
+  "train": {
+    "optimizer": {
+      "type": "AdamW",
+      "learning_rate": 2e-5,
+      "weight_decay": 0.01,
+      "lr_decay": 1.0,
+      "lr_patience": 3,
+      "early_stopping": 20,
+      "warmup_steps": 500
+    },
+    "batch_size": 64,
+    "gradient_accumulation_steps": 1,
+    "max_grad_norm": 1.0,
+    "start_epoch": 0,
+    "end_epoch": 50,
+    "loss": {
+      "classification": "BCEWithLogitsLoss",
+      "recursive_regularization": {
+        "flag": true,
+        "penalty": 0.000001
+      }
+    },
+    "device_setting": {
+      "device": "cuda",
+      "visible_device_list": "0",
+      "num_workers": 16
+    },
+    "checkpoint": {
+      "dir": "codices_hiagm_bert_checkpoint",
+      "max_number": 5,
+      "save_best": ["Macro_F1", "Micro_F1"]
+    }
+  },
+  "eval": {
+    "batch_size": 64,
+    "threshold": 0.5
+  },
+  "test": {
+    "best_checkpoint": "best_micro_HiAGM-TP",
+    "batch_size": 64
+  },
+  "log": {
+    "level": "info",
+    "filename": "bert-codices.log"
+  }
+}

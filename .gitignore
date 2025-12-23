@@ -1,0 +1,5 @@
+*.zip
+data/
+*_checkpoint/
+*vocab/
+*.log

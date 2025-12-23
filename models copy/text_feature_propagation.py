@@ -40,13 +40,7 @@ class HiAGMTP(nn.Module):
         :param text_feature ->  torch.FloatTensor, (batch_size, K0, text_dim)
         :return: logits ->  torch.FloatTensor, (batch, N)
         """
-        if isinstance(text_feature, torch.Tensor):
-            # BERT 模式：已經是 [batch, seq_len, hidden]
-            pass  # 不需要 cat
-        else:
-            text_feature = torch.cat(text_feature, 1)
-        
-        # text_feature = torch.cat(text_feature, 1)
+        text_feature = torch.cat(text_feature, 1)
         text_feature = text_feature.view(text_feature.shape[0], -1)
 
         text_feature = self.transformation_dropout(self.transformation(text_feature))

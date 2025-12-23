@@ -80,60 +80,49 @@ class GRU(nn.Module):
 
 
 class TextEncoder(nn.Module):
-    def __init__(self, config, vocab=None):
+    def __init__(self, config):
         """
         TextRCNN
         :param config: helper.configure, Configure Object
         """
         super(TextEncoder, self).__init__()
-       
-        use_bert = vocab is not None and vocab.use_bert
-
-        if use_bert:
-            self.encoder = torch.nn.Identity()
-        else:
-            self.config = config
-            self.rnn = GRU(
-                layers=config.text_encoder.RNN.num_layers,
-                input_dim=config.embedding.token.dimension,
-                output_dim=config.text_encoder.RNN.hidden_dimension,
-                batch_first=True,
-                bidirectional=config.text_encoder.RNN.bidirectional
-            )
-            hidden_dimension = config.text_encoder.RNN.hidden_dimension
-            if config.text_encoder.RNN.bidirectional:
-                hidden_dimension *= 2
-            self.kernel_sizes = config.text_encoder.CNN.kernel_size
-            self.convs = torch.nn.ModuleList()
-            for kernel_size in self.kernel_sizes:
-                self.convs.append(torch.nn.Conv1d(
-                    hidden_dimension,
-                    config.text_encoder.CNN.num_kernel,
-                    kernel_size,
-                    padding=kernel_size // 2
-                    )
+        self.config = config
+        self.rnn = GRU(
+            layers=config.text_encoder.RNN.num_layers,
+            input_dim=config.embedding.token.dimension,
+            output_dim=config.text_encoder.RNN.hidden_dimension,
+            batch_first=True,
+            bidirectional=config.text_encoder.RNN.bidirectional
+        )
+        hidden_dimension = config.text_encoder.RNN.hidden_dimension
+        if config.text_encoder.RNN.bidirectional:
+            hidden_dimension *= 2
+        self.kernel_sizes = config.text_encoder.CNN.kernel_size
+        self.convs = torch.nn.ModuleList()
+        for kernel_size in self.kernel_sizes:
+            self.convs.append(torch.nn.Conv1d(
+                hidden_dimension,
+                config.text_encoder.CNN.num_kernel,
+                kernel_size,
+                padding=kernel_size // 2
                 )
-            self.top_k = config.text_encoder.topK_max_pooling
-            self.rnn_dropout = torch.nn.Dropout(p=config.text_encoder.RNN.dropout)
+            )
+        self.top_k = config.text_encoder.topK_max_pooling
+        self.rnn_dropout = torch.nn.Dropout(p=config.text_encoder.RNN.dropout)
 
-    def forward(self, inputs, seq_lens=None):
+    def forward(self, inputs, seq_lens):
         """
         :param inputs: torch.FloatTensor, embedding, (batch, max_len, embedding_dim)
         :param seq_lens: torch.LongTensor, (batch, max_len)
         :return:
         """
-        if seq_lens is None:
-            # BERT 模式：inputs 已經是 [batch, hidden_dim]
-            # return self.encoder(inputs)
-            return inputs
-        else:
-            text_output, _ = self.rnn(inputs, seq_lens)
-            text_output = self.rnn_dropout(text_output)
-            text_output = text_output.transpose(1, 2)
-            topk_text_outputs = []
-            for _, conv in enumerate(self.convs):
-                convolution = F.relu(conv(text_output))
-                topk_text = torch.topk(convolution, self.top_k)[0].view(text_output.size(0), -1)
-                topk_text = topk_text.unsqueeze(1)
-                topk_text_outputs.append(topk_text)
-            return topk_text_outputs
+        text_output, _ = self.rnn(inputs, seq_lens)
+        text_output = self.rnn_dropout(text_output)
+        text_output = text_output.transpose(1, 2)
+        topk_text_outputs = []
+        for _, conv in enumerate(self.convs):
+            convolution = F.relu(conv(text_output))
+            topk_text = torch.topk(convolution, self.top_k)[0].view(text_output.size(0), -1)
+            topk_text = topk_text.unsqueeze(1)
+            topk_text_outputs.append(topk_text)
+        return topk_text_outputs

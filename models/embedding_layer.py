@@ -1,3 +1,6 @@
+# ============================================
+# 2. models/embedding_layer.py
+# ============================================
 #!/usr/bin/env python
 # coding:utf-8
 
@@ -5,6 +8,7 @@ import numpy as np
 import torch
 import helper.logger as logger
 from torch.nn.init import xavier_uniform_, kaiming_uniform_, xavier_normal_, kaiming_normal_, uniform_
+from transformers import BertModel
 
 INIT_FUNC = {
     'uniform': uniform_,
@@ -13,6 +17,43 @@ INIT_FUNC = {
     'xavier_normal': xavier_normal_,
     'kaiming_normal': kaiming_normal_
 }
+
+
+class BertEmbeddingLayer(torch.nn.Module):
+    def __init__(self, config, vocab, device):
+        super(BertEmbeddingLayer, self).__init__()
+        self.config = config
+        self.device = device
+        
+        self.bert = BertModel.from_pretrained(
+            config['embedding']['token']['pretrained_model']
+        )
+        
+        # if config['embedding']['token'].get('freeze_bert', False):
+        if hasattr(config['embedding']['token'], 'freeze_bert') and config['embedding']['token']['freeze_bert']:
+            for param in self.bert.parameters():
+                param.requires_grad = False
+        
+        self.dropout = torch.nn.Dropout(p=config['embedding']['token']['dropout'])
+    
+    # def forward(self, input_ids, attention_mask=None, token_type_ids=None):
+    #     outputs = self.bert(
+    #         input_ids=input_ids,
+    #         attention_mask=attention_mask,
+    #         token_type_ids=token_type_ids
+    #     )
+    #     # pooled_output = outputs.pooler_output
+    #     sequence_output = outputs.last_hidden_state 
+    #     return self.dropout(sequence_output)
+    
+    def forward(self, input_ids, attention_mask=None, token_type_ids=None):
+        outputs = self.bert(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids
+        )
+        cls_output = outputs.last_hidden_state[:, 0, :]  # 只取 [CLS]
+        return cls_output.unsqueeze(1)  # [batch, 1, 768]
 
 
 class EmbeddingLayer(torch.nn.Module):
@@ -27,61 +68,52 @@ class EmbeddingLayer(torch.nn.Module):
                  initial_type='kaiming_uniform',
                  negative_slope=0, mode_fan='fan_in',
                  activation_type='linear',
+                 vocab=None,
+                 device=None
                  ):
-        """
-        embedding layer
-        :param vocab_map: vocab.v2i[filed] -> Dict{Str: Int}
-        :param embedding_dim: Int, config.embedding.token.dimension
-        :param vocab_name: Str, 'token' or 'label'
-        :param config: helper.configure, Configure Object
-        :param padding_index: Int, index of padding word
-        :param pretrained_dir: Str,  file path for the pretrained embedding file
-        :param model_mode: Str, 'TRAIN' or 'EVAL', for initialization
-        :param initial_type: Str, initialization type
-        :param negative_slope: initialization config
-        :param mode_fan: initialization config
-        :param activation_type: None
-        """
         super(EmbeddingLayer, self).__init__()
-        self.dropout = torch.nn.Dropout(p=config['embedding'][vocab_name]['dropout'])
-        self.embedding = torch.nn.Embedding(len(vocab_map), embedding_dim, padding_index)
-
-        # initialize lookup table
-        assert initial_type in INIT_FUNC
-        if initial_type.startswith('kaiming'):
-            self.lookup_table = INIT_FUNC[initial_type](torch.empty(len(vocab_map),
-                                                                    embedding_dim),
-                                                        a=negative_slope,
-                                                        mode=mode_fan,
-                                                        nonlinearity=activation_type)
-        elif initial_type.startswith('xavier'):
-            self.lookup_table = INIT_FUNC[initial_type](torch.empty(len(vocab_map),
-                                                                    embedding_dim),
-                                                        gain=torch.nn.init.calculate_gain(activation_type))
+        
+        # 檢查是否使用 BERT
+        print(f"vocab is not None: {vocab is not None}")
+        print(f"vocab.use_bert: {vocab.use_bert if vocab else 'N/A'}")
+        print(f"vocab_name == 'token': {vocab_name == 'token'}")
+        self.use_bert = vocab is not None and vocab.use_bert and vocab_name == 'token'
+        
+        if self.use_bert:
+            self.bert_embedding = BertEmbeddingLayer(config, vocab, device)
+            print('Use BERT')
         else:
-            self.lookup_table = INIT_FUNC[initial_type](torch.empty(len(vocab_map),
-                                                                    embedding_dim),
-                                                        a=-0.25,
-                                                        b=0.25)
+            self.dropout = torch.nn.Dropout(p=config['embedding'][vocab_name]['dropout'])
+            self.embedding = torch.nn.Embedding(len(vocab_map), embedding_dim, padding_index)
 
-        if model_mode == 'TRAIN' and config['embedding'][vocab_name]['type'] == 'pretrain' \
-                and pretrained_dir is not None and pretrained_dir != '':
-            self.load_pretrained(embedding_dim, vocab_map, vocab_name, pretrained_dir)
+            assert initial_type in INIT_FUNC
+            if initial_type.startswith('kaiming'):
+                self.lookup_table = INIT_FUNC[initial_type](torch.empty(len(vocab_map),
+                                                                        embedding_dim),
+                                                            a=negative_slope,
+                                                            mode=mode_fan,
+                                                            nonlinearity=activation_type)
+            elif initial_type.startswith('xavier'):
+                self.lookup_table = INIT_FUNC[initial_type](torch.empty(len(vocab_map),
+                                                                        embedding_dim),
+                                                            gain=torch.nn.init.calculate_gain(activation_type))
+            else:
+                self.lookup_table = INIT_FUNC[initial_type](torch.empty(len(vocab_map),
+                                                                        embedding_dim),
+                                                            a=-0.25,
+                                                            b=0.25)
 
-        if padding_index is not None:
-            self.lookup_table[padding_index] = 0.0
-        self.embedding.weight.data.copy_(self.lookup_table)
-        self.embedding.weight.requires_grad = True
-        del self.lookup_table
+            if model_mode == 'TRAIN' and config['embedding'][vocab_name]['type'] == 'pretrain' \
+                    and pretrained_dir is not None and pretrained_dir != '':
+                self.load_pretrained(embedding_dim, vocab_map, vocab_name, pretrained_dir)
+
+            if padding_index is not None:
+                self.lookup_table[padding_index] = 0.0
+            self.embedding.weight.data.copy_(self.lookup_table)
+            self.embedding.weight.requires_grad = True
+            del self.lookup_table
 
     def load_pretrained(self, embedding_dim, vocab_map, vocab_name, pretrained_dir):
-        """
-        load pretrained file
-        :param embedding_dim: Int, configure.embedding.field.dimension
-        :param vocab_map: vocab.v2i[field] -> Dict{v:id}
-        :param vocab_name: field
-        :param pretrained_dir: str, file path
-        """
         logger.info('Loading {}-dimension {} embedding from pretrained file: {}'.format(
             embedding_dim, vocab_name, pretrained_dir))
         with open(pretrained_dir, 'r', encoding='utf8') as f_in:
@@ -99,10 +131,9 @@ class EmbeddingLayer(torch.nn.Module):
         logger.info('Total vocab size of %s is %d.' % (vocab_name, len(vocab_map)))
         logger.info('Pretrained vocab embedding has %d / %d' % (num_pretrained_vocab, len(vocab_map)))
 
-    def forward(self, vocab_id_list):
-        """
-        :param vocab_id_list: torch.Tensor, (batch_size, max_length)
-        :return: embedding -> torch.FloatTensor, (batch_size, max_length, embedding_dim)
-        """
-        embedding = self.embedding(vocab_id_list)
-        return self.dropout(embedding)
+    def forward(self, vocab_id_list=None, input_ids=None, attention_mask=None, token_type_ids=None):
+        if self.use_bert:
+            return self.bert_embedding(input_ids, attention_mask, token_type_ids)
+        else:
+            embedding = self.embedding(vocab_id_list)
+            return self.dropout(embedding)

@@ -43,16 +43,12 @@ class HiAGM(nn.Module):
             padding_index=vocab.padding_index,
             pretrained_dir=config.embedding.token.pretrained_file,
             model_mode=model_mode,
-            initial_type=config.embedding.token.init_type,
-            vocab=vocab,    # BERT
-            device=self.device  # BERT
+            initial_type=config.embedding.token.init_type
         )
 
         self.dataflow_type = DATAFLOW_TYPE[model_type]
 
-        # self.text_encoder = TextEncoder(config)
-        self.text_encoder = TextEncoder(config, vocab=vocab)
-
+        self.text_encoder = TextEncoder(config)
         self.structure_encoder = StructureEncoder(config=config,
                                                   label_map=vocab.v2i['label'],
                                                   device=self.device,
@@ -94,23 +90,14 @@ class HiAGM(nn.Module):
         :param batch: DataLoader._DataLoaderIter[Dict{'token_len': List}], each batch sampled from the current epoch
         :return: 
         """
-        # 檢查是否 BERT 模式
-        # print(batch)
-        if 'input_ids' in batch:
-            # BERT 模式
-            # print("[model.py] Use BERT")
-            embedding = self.token_embedding(
-                input_ids=batch['input_ids'].to(self.config.train.device_setting.device),
-                attention_mask=batch['attention_mask'].to(self.config.train.device_setting.device),
-                token_type_ids=batch.get('token_type_ids').to(self.config.train.device_setting.device) if batch.get('token_type_ids') is not None else None
-            )
-            token_output = self.text_encoder(embedding)
-        else:        
-            # get distributed representation of tokens, (batch_size, max_length, embedding_dimension)
-            embedding = self.token_embedding(batch['token'].to(self.config.train.device_setting.device))
-            # get the length of sequences for dynamic rnn, (batch_size, 1)
-            seq_len = batch['token_len']
-            token_output = self.text_encoder(embedding, seq_len)
+
+        # get distributed representation of tokens, (batch_size, max_length, embedding_dimension)
+        embedding = self.token_embedding(batch['token'].to(self.config.train.device_setting.device))
+
+        # get the length of sequences for dynamic rnn, (batch_size, 1)
+        seq_len = batch['token_len']
+
+        token_output = self.text_encoder(embedding, seq_len)
 
         logits = self.hiagm(token_output)
 

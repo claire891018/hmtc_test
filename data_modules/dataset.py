@@ -88,6 +88,9 @@ class ClassificationDataset(Dataset):
         """
         raw_sample = json.loads(sample_str)
         sample = {'token': [], 'label': []}
+        
+        sample['token_text'] = ' '.join(raw_sample['token'])
+        
         for k in raw_sample.keys():
             if k == 'token':
                 sample[k] = [self.vocab.v2i[k].get(v.lower(), self.vocab.oov_index) for v in raw_sample[k]]

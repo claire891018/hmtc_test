@@ -10,7 +10,7 @@ import re
 WoS Reference: https://github.com/kk7nc/HDLTex
 """
 
-FILE_DIR = 'web-of-science-dataset/WebOfScience/Meta-data/Data.txt'
+FILE_DIR = 'Meta-data/Data.txt'
 total_len = []
 np.random.seed(7)
 
@@ -105,7 +105,8 @@ def get_data_from_meta():
         doc = [word.lower() for word in doc.split() if word not in english_stopwords and len(word) > 1]
         sample_text = doc
         total_len.append(len(sample_text))
-        data.append({'doc_token': sample_text, 'doc_label': sample_label, 'doc_topic': [], 'doc_keyword': []})
+        # data.append({'doc_token': sample_text, 'doc_label': sample_label, 'doc_topic': [], 'doc_keyword': []})
+        data.append({'token': sample_text, 'label': sample_label, 'doc_topic': [], 'doc_keyword': []})
     print(label_check)
     c = 0
     for i in label_check.keys():
@@ -157,14 +158,15 @@ def get_hierarchy():
     for line in data:
         line = line.rstrip('\n')
         line = json.loads(line)
-        line = line['doc_label']
+        # line = line['doc_label']
+        line = line['label']
         if line[0] in label_hierarchy:
             if line[1] not in label_hierarchy[line[0]]:
                 label_hierarchy[line[0]].append(line[1])
         else:
             label_hierarchy['Root'].append(line[0])
             label_hierarchy[line[0]] = [line[1]]
-    f = open('wos.taxnomy', 'w')
+    f = open('wos.taxonomy', 'w')
     for i in label_hierarchy.keys():
         line = [i]
         line.extend(label_hierarchy[i])

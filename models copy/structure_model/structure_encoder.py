@@ -66,15 +66,5 @@ class StructureEncoder(nn.Module):
                                                     hierarchical_label_dict=self.hierarchical_label_dict,
                                                     label_trees=self.label_trees)
 
-    # def forward(self, inputs):
-    #     return self.model(inputs)
-    
     def forward(self, inputs):
-    # 新增：檢查輸入類型
-        if isinstance(inputs, dict) and 'input_ids' in inputs:
-            # BERT 模式：inputs 已經是 BERT embedding
-            print('[DEBUD] Use BERT')
-            return self.model(inputs)
-        else:
-            # 原始模式
-            return self.model(inputs)
+        return self.model(inputs)
