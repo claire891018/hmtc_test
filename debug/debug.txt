@@ -1,0 +1,65 @@
+0%|                                                                                                                                             | 0/78 [00:03<?, ?it/s]
+Traceback (most recent call last):
+  File "/workspace/experiments/HiAGM/train.py", line 188, in <module>
+    train(configs)
+  File "/workspace/experiments/HiAGM/train.py", line 106, in train
+    trainer.train(train_loader,
+  File "/workspace/experiments/HiAGM/train_modules/trainer.py", line 94, in train
+    return self.run(data_loader, epoch, 'Train', mode='TRAIN')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/experiments/HiAGM/train_modules/trainer.py", line 52, in run
+    logits = self.model(batch)
+             ^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1740, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1751, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/experiments/HiAGM/models/model.py", line 115, in forward
+    logits = self.hiagm(token_output)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1740, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1751, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/experiments/HiAGM/models/text_feature_propagation.py", line 57, in forward
+    label_wise_text_feature = self.graph_model(text_feature)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1740, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1751, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/experiments/HiAGM/models/structure_model/structure_encoder.py", line 103, in forward
+    return self.model(inputs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1740, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1751, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/experiments/HiAGM/models/structure_model/graphcnn.py", line 176, in forward
+    x = layer(x)
+        ^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1740, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1751, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/experiments/HiAGM/models/structure_model/graphcnn.py", line 235, in forward
+    h_in = self._attention(h, self.in_adj)    # child -> parent
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/experiments/HiAGM/models/structure_model/graphcnn.py", line 219, in _attention
+    alpha = F.dropout(alpha, p=self.dropout, training=self.training)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/functional.py", line 1422, in dropout
+    if p < 0.0 or p > 1.0:
+       ^^^^^^^
+TypeError: '<' not supported between instances of 'NoneType' and 'float'
+root@91e9b3547a87:/workspace/experiments/HiAGM# 
