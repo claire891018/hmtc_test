@@ -1,5 +1,6 @@
 {
     "conventionalCommits.scopes": [
-        "criterations.py"
+        "criterations.py",
+        "structure_encoder.py"
     ]
 }

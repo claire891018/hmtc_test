@@ -6,7 +6,6 @@ from torch.nn.parameter import Parameter
 import torch.nn.functional as F
 import numpy as np
 
-
 class HierarchyGCN(nn.Module):
     def __init__(self,
                  num_nodes,
@@ -44,7 +43,6 @@ class HierarchyGCN(nn.Module):
 
     def forward(self, label):
         return self.model[0](label)
-
 
 class HierarchyGCNModule(nn.Module):
     def __init__(self,
@@ -131,3 +129,118 @@ class HierarchyGCNModule(nn.Module):
         message_ += loop_
 
         return self.activation(message_)
+    
+class HierarchyGAT(nn.Module):
+    def __init__(
+        self,
+        num_nodes,
+        in_matrix,
+        out_matrix,
+        in_dim,
+        dropout,
+        device,
+        root=None,
+        hierarchical_label_dict=None,
+        label_trees=None,
+        num_heads=1,
+        attn_dropout=0.1,
+        num_layers=1,
+    ):
+        super().__init__()
+        
+        # Convert numpy to tensor and add self-loops
+        in_adj = torch.FloatTensor(in_matrix).to(device)
+        out_adj = torch.FloatTensor(out_matrix).to(device)
+        
+        # Add self-loops (diagonal = 1)
+        eye = torch.eye(num_nodes, device=device)
+        in_adj = torch.clamp(in_adj + eye, max=1.0)
+        out_adj = torch.clamp(out_adj + eye, max=1.0)
+
+        self.layers = nn.ModuleList([
+            HierarchyGATModule(
+                in_dim=in_dim,
+                out_dim=in_dim,
+                in_adj=in_adj,
+                out_adj=out_adj,
+                num_heads=num_heads,
+                dropout=attn_dropout,
+            )
+            for _ in range(num_layers)
+        ])
+
+        self.dropout = dropout
+
+    def forward(self, x):
+        for layer in self.layers:
+            x = layer(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
+        return x
+
+class HierarchyGATModule(nn.Module):
+    def __init__(self, in_dim, out_dim, in_adj, out_adj, num_heads=1, dropout=0.1):
+        super().__init__()
+
+        self.num_heads = num_heads
+        self.out_dim = out_dim
+
+        self.fc = nn.Linear(in_dim, out_dim * num_heads, bias=False)
+        self.attn_src = Parameter(torch.Tensor(1, num_heads, out_dim))
+        self.attn_dst = Parameter(torch.Tensor(1, num_heads, out_dim))
+
+        # Register as buffer (won't be updated during training)
+        self.register_buffer('in_adj', in_adj)
+        self.register_buffer('out_adj', out_adj)
+        
+        self.dropout = dropout
+
+        nn.init.xavier_uniform_(self.fc.weight)
+        nn.init.xavier_uniform_(self.attn_src)
+        nn.init.xavier_uniform_(self.attn_dst)
+
+    def _attention(self, h, adj):
+        """
+        h:   (B, N, H, D)
+        adj: (N, N)
+        """
+        B, N, H, D = h.size()
+
+        src_score = (h * self.attn_src).sum(dim=-1)  # (B, N, H)
+        dst_score = (h * self.attn_dst).sum(dim=-1)  # (B, N, H)
+
+        e = src_score.unsqueeze(2) + dst_score.unsqueeze(1)  # (B, N, N, H)
+        e = F.leaky_relu(e, negative_slope=0.2)
+
+        # Mask out invalid edges
+        mask = adj.unsqueeze(0).unsqueeze(-1)  # (1, N, N, 1)
+        e = e.masked_fill(mask == 0, float("-inf"))
+
+        alpha = F.softmax(e, dim=2)  # (B, N, N, H)
+        alpha = F.dropout(alpha, p=self.dropout, training=self.training)
+
+        # Aggregate neighbor features
+        out = torch.einsum("bijn,bjhd->bihd", alpha, h)  # (B, N, H, D)
+        return out
+
+    def forward(self, x):
+        """
+        x: (B, N, in_dim)
+        """
+        B, N, _ = x.size()
+        
+        # Linear transformation
+        h = self.fc(x).view(B, N, self.num_heads, self.out_dim)  # (B, N, H, D)
+
+        # Bottom-up and top-down attention
+        h_in = self._attention(h, self.in_adj)    # child -> parent
+        h_out = self._attention(h, self.out_adj)  # parent -> child
+
+        # Combine both directions
+        h = (h_in + h_out) / 2.0  # (B, N, H, D)
+        
+        # Average over attention heads
+        h = h.mean(dim=2)  # (B, N, out_dim)
+        
+        return h
+    
+    
