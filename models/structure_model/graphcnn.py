@@ -164,7 +164,7 @@ class HierarchyGAT(nn.Module):
                 in_adj=in_adj,
                 out_adj=out_adj,
                 num_heads=num_heads,
-                dropout=attn_dropout,
+                dropout=attn_dropout,  # 傳遞 attn_dropout
             )
             for _ in range(num_layers)
         ])
@@ -178,11 +178,17 @@ class HierarchyGAT(nn.Module):
         return x
 
 class HierarchyGATModule(nn.Module):
+    """
+    Dense GAT layer for hierarchical label graph
+    Input:  (B, N, D)
+    Output: (B, N, D)
+    """
     def __init__(self, in_dim, out_dim, in_adj, out_adj, num_heads=1, dropout=0.1):
         super().__init__()
 
         self.num_heads = num_heads
         self.out_dim = out_dim
+        self.dropout = dropout if dropout is not None else 0.0  # 確保不是 None
 
         self.fc = nn.Linear(in_dim, out_dim * num_heads, bias=False)
         self.attn_src = Parameter(torch.Tensor(1, num_heads, out_dim))
@@ -191,8 +197,6 @@ class HierarchyGATModule(nn.Module):
         # Register as buffer (won't be updated during training)
         self.register_buffer('in_adj', in_adj)
         self.register_buffer('out_adj', out_adj)
-        
-        self.dropout = dropout
 
         nn.init.xavier_uniform_(self.fc.weight)
         nn.init.xavier_uniform_(self.attn_src)
@@ -216,7 +220,10 @@ class HierarchyGATModule(nn.Module):
         e = e.masked_fill(mask == 0, float("-inf"))
 
         alpha = F.softmax(e, dim=2)  # (B, N, N, H)
-        alpha = F.dropout(alpha, p=self.dropout, training=self.training)
+        
+        # Apply dropout - 確保 self.dropout 是 float
+        if self.training and self.dropout > 0:
+            alpha = F.dropout(alpha, p=self.dropout, training=True)
 
         # Aggregate neighbor features
         out = torch.einsum("bijn,bjhd->bihd", alpha, h)  # (B, N, H, D)
@@ -242,5 +249,3 @@ class HierarchyGATModule(nn.Module):
         h = h.mean(dim=2)  # (B, N, out_dim)
         
         return h
-    
-    

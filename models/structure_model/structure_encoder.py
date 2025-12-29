@@ -67,7 +67,7 @@ class StructureEncoder(nn.Module):
         #                                             root=self.root,
         #                                             hierarchical_label_dict=self.hierarchical_label_dict,
         #                                             label_trees=self.label_trees)
-        
+        print(f'[DEBUG] graph_model_type: {graph_model_type}')
         common_kwargs = dict(
             num_nodes=len(self.label_map),
             in_matrix=self.node_prob_from_child,
